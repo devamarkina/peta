@@ -65,32 +65,43 @@
     let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
     const uniqueSectors = new Set(), uniqueYears = new Set();
 
-    function normalizeProperties(props){
-      const out = {};
-      Object.keys(props||{}).forEach(k => {
-        const v = props[k];
-        const key = String(k).trim();
-        const lower = key.toLowerCase().replace(/\s+/g,'_');
-        out[key] = v;
-        if(['sektor','sector'].includes(lower)) out.Sektor = v;
-        if(['tahun','tahun_pembangunan','year'].includes(lower)) out.Tahun_Pembangunan = v;
-        if(['nama','nama_infrastruktur','name'].includes(lower)) out.Nama_Infrastruktur = v;
-        if(['status','status_keberfungsian'].includes(lower)) out.Status_Keberfungsian = v;
-      });
-      return out;
-    }
+function normalizeProperties(props){
+const out = {};
+Object.keys(props||{}).forEach(k => {
+const v = props[k];
+const key = String(k).trim();
+const lower = key.toLowerCase().replace(/\s+/g,'_');
+out[key] = v;
+if(['sektor','sector'].includes(lower)) out.Sektor = v;
+if(['tahun','tahun_pembangunan','tahun','year'].includes(lower)) out.Tahun_Pembangunan = v;
+if(['nama','nama_infrastruktur','name'].includes(lower)) out.Nama_Infrastruktur = v;
+if(['status','status_keberfungsian','kondisi'].includes(lower)) out.Status_Keberfungsian = v;
+if(['lokasi','location'].includes(lower)) out.Lokasi = v;
+});
+return out;
+}
 
-    function buildInfoHtml(p){
-      const title = p.Nama_Infrastruktur || p.Nama || p.name || '';
-      let html = '<div style="max-width:320px;font-size:13px;color:#021129;background:#fff;padding:8px;border-radius:6px">';
-      if(title) html += '<strong>' + escapeHtml(title) + '</strong><br>';
-      if(p.Sektor) html += 'Sektor: ' + escapeHtml(String(p.Sektor)) + '<br>';
-      if(p.Tahun_Pembangunan) html += 'Tahun: ' + escapeHtml(String(p.Tahun_Pembangunan)) + '<br>';
-      if(p.Status_Keberfungsian) html += 'Status: ' + escapeHtml(String(p.Status_Keberfungsian)) + '<br>';
-      if(p.Keterangan) html += '<div style="margin-top:6px">' + escapeHtml(String(p.Keterangan)) + '</div>';
-      html += '</div>';
-      return html;
-    }
+function buildInfoHtml(p){
+  let html = '<div style="max-width:320px;font-size:13px;color:#021129;background:#fff;padding:8px;border-radius:6px">';
+
+  if(p.Nama_Infrastruktur) 
+    html += '<strong>' + escapeHtml(String(p.Nama_Infrastruktur)) + '</strong><br>';
+
+  if(p.Sektor) 
+    html += 'Sektor: ' + escapeHtml(String(p.Sektor)) + '<br>';
+
+  if(p.Lokasi) 
+    html += 'Lokasi: ' + escapeHtml(String(p.Lokasi)) + '<br>';
+
+  if(p.Tahun_Pembangunan) 
+    html += 'Tahun: ' + escapeHtml(String(p.Tahun_Pembangunan)) + '<br>';
+
+  if(p.Status_Keberfungsian) 
+    html += 'Status: ' + escapeHtml(String(p.Status_Keberfungsian)) + '<br>';
+
+  html += '</div>';
+  return html;
+}
 
     function clearMarkers(){
       if(markerCluster) markerCluster.clearMarkers();
@@ -125,41 +136,48 @@
     }
 
     function populateFilters(geo){
-      uniqueSectors.clear(); uniqueYears.clear();
-      geo.features.forEach(f => {
-        const p = normalizeProperties(f.properties || {});
-        if(p.Sektor && String(p.Sektor).trim()) uniqueSectors.add(String(p.Sektor).trim());
-        if(p.Tahun_Pembangunan && String(p.Tahun_Pembangunan).trim() && !isNaN(Number(String(p.Tahun_Pembangunan).trim()))) uniqueYears.add(String(p.Tahun_Pembangunan).trim());
-      });
+    uniqueSectors.clear();
+    uniqueYears.clear();
+    if(!geo || !Array.isArray(geo.features)) return;
+    geo.features.forEach(f => {
+    const p = normalizeProperties(f.properties || {});
+    if(p.Sektor && String(p.Sektor).trim()) uniqueSectors.add(String(p.Sektor).trim());
+    if(p.Tahun_Pembangunan && String(p.Tahun_Pembangunan).trim() && !isNaN(Number(String(p.Tahun_Pembangunan).trim()))) {
+    uniqueYears.add(String(p.Tahun_Pembangunan).trim());
+    }
+    });
 
-      const sectorSel = document.getElementById('sectorFilter');
-      const yearSel = document.getElementById('yearFilter');
+    const sectorSel = document.getElementById('sectorFilter');
+    const yearSel = document.getElementById('yearFilter');
 
-      sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
-      yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
+    sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
+    yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
     }
 
     function applyFilter(){
-      const sector = document.getElementById('sectorFilter').value;
-      const year = document.getElementById('yearFilter').value;
-      let visible = 0;
-      allMarkers.forEach(({ marker, props }) => {
-        const mSector = props.Sektor ? String(props.Sektor).trim() : '';
-        const mYear = props.Tahun_Pembangunan ? String(props.Tahun_Pembangunan).trim() : '';
-        const matchSector = !sector || mSector === sector;
-        const matchYear = !year || mYear === year;
-        if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
-      });
-      const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
-      if(markerCluster) markerCluster.clearMarkers();
-      markerCluster = new MarkerClusterer(map, visibleMarkers, { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
-      setStatus('Menampilkan ' + visible + ' titik.');
-      if(visible > 0){
-        const b = new google.maps.LatLngBounds();
-        visibleMarkers.forEach(m => b.extend(m.getPosition()));
-        if(!b.isEmpty()) map.fitBounds(b);
-      }
-    }
+    const sector = String(document.getElementById('sectorFilter').value || '').trim();
+    const year = String(document.getElementById('yearFilter').value || '').trim();
+    let visible = 0;
+    allMarkers.forEach(({ marker, props }) => {
+    const mSector = props.Sektor ? String(props.Sektor).trim() : '';
+    const mYear = props.Tahun_Pembangunan ? String(props.Tahun_Pembangunan).trim() : '';
+    const matchSector = !sector || mSector === sector;
+    const matchYear = !year || mYear === year;
+    if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
+    });
+
+    const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
+    if(markerCluster) markerCluster.clearMarkers();
+    markerCluster = new MarkerClusterer(map, visibleMarkers, { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
+
+  setStatus('Menampilkan ' + visible + ' titik.');
+  if(visible > 0){
+    const b = new google.maps.LatLngBounds();
+    visibleMarkers.forEach(m => b.extend(m.getPosition()));
+    if(!b.isEmpty()) map.fitBounds(b);
+  }
+}
+
 
     function resetFilter(){
       document.getElementById('sectorFilter').value = '';
