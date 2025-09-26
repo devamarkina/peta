@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Peta Infrastruktur - MalukuInfraZone</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#071024; --panel:rgba(255,255,255,0.03); --muted:#a7b6c8; --accent:#3b82f6 }
+    html,body{height:100%;margin:0;font-family:Poppins,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg),#05060a);color:#fff}
+    .wrap{max-width:1100px;margin:20px auto;padding:20px}
+    header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .title{font-weight:700}
+    .btn{display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700}
+    .btn-back{background:rgba(255,255,255,0.05);color:var(--muted)}
+    #map{width:100%;height:78vh;border-radius:12px;background:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin-top:14px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .select, .input {background:transparent;border:1px solid rgba(255,255,255,0.06);color:#e6eef7;padding:6px 8px;border-radius:6px}
+    .status{margin-top:8px;color:var(--muted);font-size:13px}
+    @media (max-width:720px){ #map{height:60vh} .controls{flex-direction:column;align-items:flex-start} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title">Peta Infrastruktur — MalukuInfraZone</div>
+        <div style="font-size:13px;color:var(--muted)">BPBPK Maluku</div>
+      </div>
+      <div class="controls">
+        <a href="index.html" class="btn btn-back">Kembali</a>
+      </div>
+    </header>
+
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:13px;color:var(--muted)">Sektor</label>
+      <select id="sectorFilter" class="select"></select>
+
+      <label style="font-size:13px;color:var(--muted)">Tahun</label>
+      <select id="yearFilter" class="select"></select>
+
+      <button id="applyBtn" class="btn" style="background:var(--accent);color:#021129">Terapkan</button>
+      <button id="resetBtn" class="btn btn-back">Reset</button>
+    </div>
+
+    <div id="map" role="application" aria-label="Peta Infrastruktur"></div>
+    <div id="status" class="status">Menunggu pemuatan peta...</div>
+  </div>
+
+  <!-- MarkerClusterer (classic) -->
+  <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
+
+  <!-- Google Maps API: replace YOUR_API_KEY -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBEZqcze-RGCcRGIBjyEt0-ID99TCDJeS0&callback=initMap" async defer></script>
+
+  <script>
+    const GITHUB_USER = 'devamarkina';
+    const REPO_NAME = 'peta';
+    const BRANCH = 'main';
+    const RAW_GEOJSON = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/DATA_SPASIAL.geojson`;
+
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+    function setStatus(t){ document.getElementById('status').textContent = t || ''; }
+
+    let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
+    const uniqueSectors = new Set(), uniqueYears = new Set();
+
+    function normalizeProperties(props){
+      const out = {};
+      Object.keys(props||{}).forEach(k => {
+        const v = props[k];
+        const key = String(k).trim();
+        const lower = key.toLowerCase().replace(/\s+/g,'_');
+        out[key] = v;
+        if(['sektor','sector'].includes(lower)) out.Sektor = v;
+        if(['tahun','tahun_pembangunan','year'].includes(lower)) out.Tahun_Pembangunan = v;
+        if(['nama','nama_infrastruktur','name'].includes(lower)) out.Nama_Infrastruktur = v;
+        if(['status','status_keberfungsian'].includes(lower)) out.Status_Keberfungsian = v;
+      });
+      return out;
+    }
+
+    function buildInfoHtml(p){
+      const title = p.Nama_Infrastruktur || p.Nama || p.name || '';
+      let html = '<div style="max-width:320px;font-size:13px;color:#021129;background:#fff;padding:8px;border-radius:6px">';
+      if(title) html += '<strong>' + escapeHtml(title) + '</strong><br>';
+      if(p.Sektor) html += 'Sektor: ' + escapeHtml(String(p.Sektor)) + '<br>';
+      if(p.Tahun_Pembangunan) html += 'Tahun: ' + escapeHtml(String(p.Tahun_Pembangunan)) + '<br>';
+      if(p.Status_Keberfungsian) html += 'Status: ' + escapeHtml(String(p.Status_Keberfungsian)) + '<br>';
+      if(p.Keterangan) html += '<div style="margin-top:6px">' + escapeHtml(String(p.Keterangan)) + '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    function clearMarkers(){
+      if(markerCluster) markerCluster.clearMarkers();
+      allMarkers.forEach(x => x.marker.setMap(null));
+      allMarkers = [];
+    }
+
+    function createMarkersFromGeo(geo){
+      clearMarkers();
+      if(!geo || !Array.isArray(geo.features)) return 0;
+      const bounds = new google.maps.LatLngBounds();
+      geo.features.forEach(f => {
+        if(!f.geometry) return;
+        if(f.geometry.type !== 'Point') return;
+        const c = f.geometry.coordinates;
+        if(!Array.isArray(c) || c.length < 2) return;
+        const lng = Number(c[0]), lat = Number(c[1]);
+        if(!isFinite(lat) || !isFinite(lng)) return;
+        const props = normalizeProperties(f.properties || {});
+        const marker = new google.maps.Marker({ position:{lat, lng}, title: props.Nama_Infrastruktur || '', optimized:true });
+        marker.addListener('click', () => { infoWindow.setContent(buildInfoHtml(props)); infoWindow.open(map, marker); });
+        allMarkers.push({ marker, props });
+        bounds.extend(marker.getPosition());
+      });
+
+      const simple = allMarkers.map(x => x.marker);
+      if(markerCluster) markerCluster.clearMarkers();
+      markerCluster = new MarkerClusterer(map, simple, { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
+
+      if(!bounds.isEmpty()) map.fitBounds(bounds);
+      return simple.length;
+    }
+
+    function populateFilters(geo){
+      uniqueSectors.clear(); uniqueYears.clear();
+      geo.features.forEach(f => {
+        const p = normalizeProperties(f.properties || {});
+        if(p.Sektor && String(p.Sektor).trim()) uniqueSectors.add(String(p.Sektor).trim());
+        if(p.Tahun_Pembangunan && String(p.Tahun_Pembangunan).trim() && !isNaN(Number(String(p.Tahun_Pembangunan).trim()))) uniqueYears.add(String(p.Tahun_Pembangunan).trim());
+      });
+
+      const sectorSel = document.getElementById('sectorFilter');
+      const yearSel = document.getElementById('yearFilter');
+
+      sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
+      yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
+    }
+
+    function applyFilter(){
+      const sector = document.getElementById('sectorFilter').value;
+      const year = document.getElementById('yearFilter').value;
+      let visible = 0;
+      allMarkers.forEach(({ marker, props }) => {
+        const mSector = props.Sektor ? String(props.Sektor).trim() : '';
+        const mYear = props.Tahun_Pembangunan ? String(props.Tahun_Pembangunan).trim() : '';
+        const matchSector = !sector || mSector === sector;
+        const matchYear = !year || mYear === year;
+        if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
+      });
+      const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
+      if(markerCluster) markerCluster.clearMarkers();
+      markerCluster = new MarkerClusterer(map, visibleMarkers, { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
+      setStatus('Menampilkan ' + visible + ' titik.');
+      if(visible > 0){
+        const b = new google.maps.LatLngBounds();
+        visibleMarkers.forEach(m => b.extend(m.getPosition()));
+        if(!b.isEmpty()) map.fitBounds(b);
+      }
+    }
+
+    function resetFilter(){
+      document.getElementById('sectorFilter').value = '';
+      document.getElementById('yearFilter').value = '';
+      allMarkers.forEach(x => x.marker.setMap(map));
+      if(markerCluster) markerCluster.clearMarkers();
+      markerCluster = new MarkerClusterer(map, allMarkers.map(x => x.marker), { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
+      setStatus('Menampilkan ' + allMarkers.length + ' titik.');
+      const b = new google.maps.LatLngBounds();
+      allMarkers.forEach(x => b.extend(x.marker.getPosition()));
+      if(!b.isEmpty()) map.fitBounds(b);
+    }
+
+    async function loadGeoJSON(url){
+      setStatus('Memuat GeoJSON dari: ' + url);
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const geo = await res.json();
+        geoData = geo;
+        const count = createMarkersFromGeo(geo);
+        populateFilters(geo);
+        setStatus('Data dimuat. ' + count + ' titik terbaca.');
+      }catch(err){
+        console.error(err);
+        setStatus('Gagal memuat dari raw GitHub. Mencoba file lokal...');
+        try {
+          const res2 = await fetch('DATA_SPASIAL.geojson');
+          if(!res2.ok) throw new Error('Fallback failed: ' + res2.status);
+          const geo2 = await res2.json();
+          geoData = geo2;
+          const count2 = createMarkersFromGeo(geo2);
+          populateFilters(geo2);
+          setStatus('Data dimuat dari file lokal. ' + count2 + ' titik terbaca.');
+        }catch(err2){
+          console.error(err2);
+          setStatus('Gagal memuat GeoJSON. Pastikan DATA_SPASIAL.geojson ada di repo atau RAW_GEOJSON benar.');
+        }
+      }
+    }
+
+    function initMap(){
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: -3.3, lng: 129.1 },
+        zoom: 7,
+        mapTypeControl: false,
+        streetViewControl: false
+      });
+      infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+      document.getElementById('applyBtn').addEventListener('click', applyFilter);
+      document.getElementById('resetBtn').addEventListener('click', resetFilter);
+      loadGeoJSON(RAW_GEOJSON);
+    }
+
+    window.initMap = initMap;
+    window.loadGeoJSON = loadGeoJSON;
+  </script>
+</body>
+</html>
