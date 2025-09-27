@@ -13,39 +13,44 @@
     .title{font-weight:700}
     .btn{display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700;cursor:pointer}
     .btn-back{background:rgba(255,255,255,0.04);color:#e6eef7;border:1px solid rgba(255,255,255,0.08)}
-    #map{width:100%;height:78vh;border-radius:12px;background:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin-top:14px}
+
+    /* controls & select - dark theme with high contrast text */
     .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .select, .input {background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.12);color:#e6eef7;padding:6px 8px;border-radius:6px;min-width:120px}
-    .status{margin-top:8px;color:var(--muted);font-size:13px}
-    /* Legend styles */
-    .legend {
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      align-items:center;
-      margin-top:12px;
-      padding:10px 12px;
-      background: rgba(0,0,0,0.45);
-      border-radius:10px;
-      max-width: 100%;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-    }
-    .legend-item {
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 8px;
-      background: rgba(255,255,255,0.02);
+    .select-wrap{position:relative;display:inline-block}
+    .select{
+      background: rgba(255,255,255,0.08);   /* semi-transparent dark */
+      color: #ffffff;                        /* white text for contrast */
+      padding:8px 12px;
       border-radius:8px;
-      font-size:14px;
-      color:#e6eef7;
+      border:1px solid rgba(255,255,255,0.18);
+      min-width:160px;
+      -webkit-appearance:none;
+      -moz-appearance:none;
+      appearance:none;
+      font-weight:600;
     }
-    .legend-item img {
-      width:28px;
-      height:28px;
-      object-fit:contain;
-      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+    .select-wrap::after{
+      content:"";
+      position:absolute;
+      right:10px;
+      top:50%;
+      transform:translateY(-50%);
+      width:0;height:0;
+      border-left:6px solid transparent;
+      border-right:6px solid transparent;
+      border-top:8px solid #ffffff; /* white arrow */
+      pointer-events:none;
     }
+    select::-ms-expand { display: none; } /* hide IE arrow */
+
+    #map{width:100%;height:78vh;border-radius:12px;background:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin-top:14px}
+    .status{margin-top:8px;color:var(--muted);font-size:13px}
+
+    /* Legend */
+    .legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;padding:10px 12px;background:rgba(0,0,0,0.45);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.45)}
+    .legend-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:8px;font-size:14px;color:#e6eef7}
+    .legend-item img{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.4))}
+
     @media (max-width:720px){ #map{height:60vh} .controls{flex-direction:column;align-items:flex-start} }
   </style>
 </head>
@@ -63,10 +68,14 @@
 
     <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label style="font-size:13px;color:var(--muted)">Sektor</label>
-      <select id="sectorFilter" class="select"></select>
+      <div class="select-wrap">
+        <select id="sectorFilter" class="select"></select>
+      </div>
 
       <label style="font-size:13px;color:var(--muted)">Tahun</label>
-      <select id="yearFilter" class="select"></select>
+      <div class="select-wrap">
+        <select id="yearFilter" class="select"></select>
+      </div>
 
       <button id="applyBtn" class="btn" style="background:var(--accent);color:#021129">Terapkan</button>
       <button id="resetBtn" class="btn btn-back">Reset</button>
@@ -76,7 +85,7 @@
     <div id="status" class="status">Menunggu pemuatan peta...</div>
 
     <!-- Legend -->
-    <div class="legend" aria-hidden="false" role="region" aria-label="Legend Sektor">
+    <div class="legend" role="region" aria-label="Legend Sektor">
       <div class="legend-item"><img src="images/icon-air.png" alt=""><span>Air Minum</span></div>
       <div class="legend-item"><img src="images/icon-sanitasi.png" alt=""><span>Sanitasi</span></div>
       <div class="legend-item"><img src="images/icon-bina.png" alt=""><span>Bina Penataan Bangunan</span></div>
@@ -86,8 +95,7 @@
 
   <!-- MarkerClusterer -->
   <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
-
-  <!-- Google Maps API -->
+  <!-- Google Maps API (pakai API key Anda) -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBEZqcze-RGCcRGIBjyEt0-ID99TCDJeS0&callback=initMap" async defer></script>
 
   <script>
@@ -95,53 +103,6 @@
     const REPO_NAME = 'peta';
     const BRANCH = 'main';
     const RAW_GEOJSON = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/DATA_SPASIAL.geojson`;
-
-    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
-    function setStatus(t){ document.getElementById('status').textContent = t || ''; }
-
-    let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
-    const uniqueSectors = new Set(), uniqueYears = new Set();
-
-    function normalizeProperties(props){
-      const out = {};
-      Object.keys(props||{}).forEach(k => {
-        const v = props[k];
-        const key = String(k).trim();
-        const lower = key.toLowerCase().replace(/\s+/g,'_');
-        out[key] = v;
-        if(['sektor','sector'].includes(lower)) out.Sektor = v;
-        if(['tahun','tahun_pembangunan','year'].includes(lower)) out.Tahun_Pembangunan = v;
-        if(['nama','nama_infrastruktur','name'].includes(lower)) out.Nama_Infrastruktur = v;
-        if(['status','status_keberfungsian','kondisi'].includes(lower)) out.Status_Keberfungsian = v;
-        if(['lokasi','location'].includes(lower)) out.Lokasi = v;
-      });
-      return out;
-    }
-
-    function buildInfoHtml(p){
-      let html = '<div style="max-width:320px;font-size:13px;color:#021129;background:#fff;padding:8px;border-radius:6px">';
-      if(p.Nama_Infrastruktur) html += '<strong>' + escapeHtml(String(p.Nama_Infrastruktur)) + '</strong><br>';
-      if(p.Sektor) html += 'Sektor: ' + escapeHtml(String(p.Sektor)) + '<br>';
-      if(p.Lokasi) html += 'Lokasi: ' + escapeHtml(String(p.Lokasi)) + '<br>';
-      if(p.Tahun_Pembangunan) html += 'Tahun Bangun: ' + escapeHtml(String(p.Tahun_Pembangunan)) + '<br>';
-      if(p.Status_Keberfungsian) html += 'Status: ' + escapeHtml(String(p.Status_Keberfungsian)) + '<br>';
-      html += '</div>';
-      return html;
-    }
-
-    function clearCluster(){
-      if(!markerCluster) return;
-      try{
-        if(typeof markerCluster.clearMarkers === 'function') markerCluster.clearMarkers();
-        else if(typeof markerCluster.delete === 'function') markerCluster.delete();
-      }catch(e){}
-      markerCluster = null;
-    }
-    function clearMarkers(){
-      clearCluster();
-      allMarkers.forEach(x => { if(x.marker) x.marker.setMap(null); });
-      allMarkers = [];
-    }
 
     const iconMap = {
       'Air Minum': 'images/icon-air.png',
@@ -151,49 +112,88 @@
       'default': 'images/icon-default.png'
     };
 
+    let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
+    const uniqueSectors = new Set(), uniqueYears = new Set();
+
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+    function setStatus(t){ document.getElementById('status').textContent = t || ''; }
+
+    function normalizeProperties(props){
+      const out = {};
+      Object.keys(props||{}).forEach(k=>{
+        const v = props[k];
+        const lower = String(k).toLowerCase();
+        if(lower.includes('sektor')) out.Sektor = v;
+        if(lower.includes('tahun')) out.Tahun_Pembangunan = v;
+        if(lower.includes('nama')) out.Nama_Infrastruktur = v;
+        if(lower.includes('status')) out.Status_Keberfungsian = v;
+        if(lower.includes('lokasi')) out.Lokasi = v;
+      });
+      return Object.assign({}, props||{}, out);
+    }
+
+    function buildInfoHtml(p){
+      let html = '<div style="max-width:320px;font-size:13px;color:#021129;background:#fff;padding:8px;border-radius:6px">';
+      if(p.Nama_Infrastruktur) html += '<strong>' + escapeHtml(p.Nama_Infrastruktur) + '</strong><br>';
+      if(p.Sektor) html += 'Sektor: ' + escapeHtml(p.Sektor) + '<br>';
+      if(p.Lokasi) html += 'Lokasi: ' + escapeHtml(p.Lokasi) + '<br>';
+      if(p.Tahun_Pembangunan) html += 'Tahun Bangun: ' + escapeHtml(p.Tahun_Pembangunan) + '<br>';
+      if(p.Status_Keberfungsian) html += 'Status: ' + escapeHtml(p.Status_Keberfungsian) + '<br>';
+      html += '</div>';
+      return html;
+    }
+
+    function clearCluster(){
+      if(!markerCluster) return;
+      markerCluster.clearMarkers?.();
+      markerCluster = null;
+    }
+
+    function clearMarkers(){
+      clearCluster();
+      allMarkers.forEach(x=> x.marker.setMap(null));
+      allMarkers = [];
+    }
+
     function createMarkersFromGeo(geo){
       clearMarkers();
       if(!geo || !Array.isArray(geo.features)) return 0;
       const bounds = new google.maps.LatLngBounds();
 
-      geo.features.forEach(f => {
-        if(!f.geometry || f.geometry.type !== 'Point') return;
-        const c = f.geometry.coordinates;
-        if(!Array.isArray(c) || c.length < 2) return;
-        const lng = Number(c[0]), lat = Number(c[1]);
+      geo.features.forEach(f=>{
+        if(f.geometry?.type !== 'Point') return;
+        const [lng,lat] = f.geometry.coordinates;
         if(!isFinite(lat) || !isFinite(lng)) return;
 
-        const props = normalizeProperties(f.properties || {});
+        const props = normalizeProperties(f.properties||{});
         const sectorName = props.Sektor ? String(props.Sektor).trim() : 'default';
         const iconUrl = iconMap[sectorName] || iconMap['default'];
 
         const marker = new google.maps.Marker({
-          position: { lat, lng },
+          position: { lat: Number(lat), lng: Number(lng) },
           map,
-          title: props.Nama_Infrastruktur || props.Nama || '',
-          optimized: true,
+          title: props.Nama_Infrastruktur || '',
           icon: { url: iconUrl, scaledSize: new google.maps.Size(36,36) }
         });
 
         marker.addListener('click', () => {
-          // center + zoom first, then open InfoWindow after a short delay
+          // center + zoom first, then open InfoWindow briefly after
           map.setCenter(marker.getPosition());
           map.setZoom(14);
-          setTimeout(() => {
+          setTimeout(()=> {
             infoWindow.setContent(buildInfoHtml(props));
             infoWindow.open(map, marker);
-          }, 200);
+          }, 160);
         });
 
         allMarkers.push({ marker, props });
         bounds.extend(marker.getPosition());
       });
 
+      // cluster
       try{
-        if(window.MarkerClusterer){
-          markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
-        }
-      }catch(err){}
+        markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x=>x.marker) });
+      }catch(e){ console.warn(e); }
 
       if(!bounds.isEmpty()) map.fitBounds(bounds);
       return allMarkers.length;
@@ -202,16 +202,16 @@
     function populateFilters(geo){
       uniqueSectors.clear(); uniqueYears.clear();
       if(!geo || !Array.isArray(geo.features)) return;
-      geo.features.forEach(f => {
-        const p = normalizeProperties(f.properties || {});
+      geo.features.forEach(f=>{
+        const p = normalizeProperties(f.properties||{});
         if(p.Sektor && String(p.Sektor).trim()) uniqueSectors.add(String(p.Sektor).trim());
         if(p.Tahun_Pembangunan && String(p.Tahun_Pembangunan).trim() && !isNaN(Number(String(p.Tahun_Pembangunan).trim()))) uniqueYears.add(String(p.Tahun_Pembangunan).trim());
       });
 
       const sectorSel = document.getElementById('sectorFilter');
       const yearSel = document.getElementById('yearFilter');
-      sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
-      yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
+      sectorSel.innerHTML = '<option value=\"\">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value=\"'+escapeHtml(s)+'\">'+escapeHtml(s)+'</option>').join('');
+      yearSel.innerHTML = '<option value=\"\">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value=\"'+escapeHtml(y)+'\">'+escapeHtml(y)+'</option>').join('');
     }
 
     function applyFilter(){
@@ -227,9 +227,11 @@
         if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
       });
 
+      // rebuild cluster for visible markers
       const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
       clearCluster();
-      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: visibleMarkers }); } }catch(e){}
+      try{ markerCluster = new MarkerClusterer({ map, markers: visibleMarkers }); }catch(e){}
+
       setStatus('Menampilkan ' + visible + ' titik.');
       if(visible > 0){
         const b = new google.maps.LatLngBounds();
@@ -243,7 +245,7 @@
       document.getElementById('yearFilter').value = '';
       allMarkers.forEach(x => x.marker.setMap(map));
       clearCluster();
-      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) }); } }catch(e){}
+      try{ markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) }); }catch(e){}
       setStatus('Menampilkan ' + allMarkers.length + ' titik.');
       const b = new google.maps.LatLngBounds();
       allMarkers.forEach(x => b.extend(x.marker.getPosition()));
@@ -251,24 +253,28 @@
     }
 
     async function loadGeoJSON(url){
-      setStatus('Memuat GeoJSON dari: ' + url);
+      setStatus('Memuat data...');
       try{
         const res = await fetch(url);
-        if(!res.ok) throw new Error('HTTP ' + res.status);
+        if(!res.ok) throw new Error('HTTP '+res.status);
         const geo = await res.json();
         geoData = geo;
-        const count = createMarkersFromGeo(geo);
+        createMarkersFromGeo(geo);
         populateFilters(geo);
         resetFilter();
-        setStatus('Data dimuat. ' + count + ' titik terbaca.');
-      }catch(err){
-        setStatus('Gagal memuat GeoJSON.');
+        setStatus('Data dimuat. ' + allMarkers.length + ' titik terbaca.');
+      }catch(e){
+        console.error(e);
+        setStatus('Gagal memuat data.');
       }
     }
 
     function initMap(){
-      map = new google.maps.Map(document.getElementById('map'), { center: { lat: -3.3, lng: 129.1 }, zoom: 7, mapTypeControl: false, streetViewControl: false });
-      infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+      map = new google.maps.Map(document.getElementById('map'), {
+        center:{lat:-3.3,lng:129.1}, zoom:7,
+        mapTypeControl:false, streetViewControl:false
+      });
+      infoWindow = new google.maps.InfoWindow({ maxWidth:320 });
       document.getElementById('applyBtn').addEventListener('click', applyFilter);
       document.getElementById('resetBtn').addEventListener('click', resetFilter);
       loadGeoJSON(RAW_GEOJSON);
