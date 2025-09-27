@@ -110,28 +110,69 @@
       allMarkers = [];
     }
 
-    // create markers and attach directly to map so they show immediately
-    function createMarkersFromGeo(geo){
-      clearMarkers();
-      if(!geo || !Array.isArray(geo.features)) return 0;
-      const bounds = new google.maps.LatLngBounds();
+// mapping sektor -> icon
+const ICON_BASE = "images/";
+const iconMap = {
+  "Air Minum": ICON_BASE + "icon-air.png",
+  "Sanitasi": ICON_BASE + "icon-sanitasi.png",
+  "Bina Penataan Bangunan": ICON_BASE + "icon-bina.png",
+  "Pengembangan Kawasan Strategis": ICON_BASE + "icon-kawasan.png",
+  "default": ICON_BASE + "icon-default.png" // fallback
+};
 
-      geo.features.forEach(f => {
-        if(!f.geometry || f.geometry.type !== 'Point') return;
-        const c = f.geometry.coordinates;
-        if(!Array.isArray(c) || c.length < 2) return;
-        const lng = Number(c[0]), lat = Number(c[1]);
-        if(!isFinite(lat) || !isFinite(lng)) return;
+// create markers and attach directly to map so they show immediately
+function createMarkersFromGeo(geo){
+  clearMarkers();
+  if(!geo || !Array.isArray(geo.features)) return 0;
+  const bounds = new google.maps.LatLngBounds();
 
-        const props = normalizeProperties(f.properties || {});
+  geo.features.forEach(f => {
+    if(!f.geometry || f.geometry.type !== 'Point') return;
+    const c = f.geometry.coordinates;
+    if(!Array.isArray(c) || c.length < 2) return;
+    const lng = Number(c[0]), lat = Number(c[1]);
+    if(!isFinite(lat) || !isFinite(lng)) return;
 
-        // important: set map so marker visible immediately
-        const marker = new google.maps.Marker({
-          position: { lat, lng },
-          map,
-          title: props.Nama_Infrastruktur || props.Nama || '',
-          optimized: true
-        });
+    const props = normalizeProperties(f.properties || {});
+    const sectorName = props.Sektor ? String(props.Sektor).trim() : "default";
+    const iconUrl = iconMap[sectorName] || iconMap["default"];
+
+    const marker = new google.maps.Marker({
+      position: { lat, lng },
+      map,
+      title: props.Nama_Infrastruktur || props.Nama || "",
+      optimized: true,
+      icon: {
+        url: iconUrl,
+        scaledSize: new google.maps.Size(36, 36)
+      }
+    });
+
+    marker.addListener("click", () => {
+      infoWindow.setContent(buildInfoHtml(props));
+      infoWindow.open(map, marker);
+    });
+
+    allMarkers.push({ marker, props });
+    bounds.extend(marker.getPosition());
+  });
+
+  try{
+    if(window.MarkerClusterer){
+      markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
+    } else if(window.markerClusterer){
+      markerCluster = new window.markerClusterer(map, allMarkers.map(x => x.marker), {
+        imagePath: "https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m"
+      });
+    }
+  }catch(err){
+    console.warn("Gagal membuat cluster", err);
+  }
+
+  if(!bounds.isEmpty()) map.fitBounds(bounds);
+  return allMarkers.length;
+}
+
 
         marker.addListener('click', () => {
           infoWindow.setContent(buildInfoHtml(props));
