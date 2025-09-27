@@ -11,12 +11,41 @@
     .wrap{max-width:1100px;margin:20px auto;padding:20px}
     header{display:flex;justify-content:space-between;align-items:center;gap:12px}
     .title{font-weight:700}
-    .btn{display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700}
-    .btn-back{background:rgba(255,255,255,0.05);color:var(--muted)}
+    .btn{display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700;cursor:pointer}
+    .btn-back{background:rgba(255,255,255,0.04);color:#e6eef7;border:1px solid rgba(255,255,255,0.08)}
     #map{width:100%;height:78vh;border-radius:12px;background:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin-top:14px}
     .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .select, .input {background:transparent;border:1px solid rgba(255,255,255,0.06);color:#e6eef7;padding:6px 8px;border-radius:6px}
+    .select, .input {background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.12);color:#e6eef7;padding:6px 8px;border-radius:6px;min-width:120px}
     .status{margin-top:8px;color:var(--muted);font-size:13px}
+    /* Legend styles */
+    .legend {
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:center;
+      margin-top:12px;
+      padding:10px 12px;
+      background: rgba(0,0,0,0.45);
+      border-radius:10px;
+      max-width: 100%;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    }
+    .legend-item {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      background: rgba(255,255,255,0.02);
+      border-radius:8px;
+      font-size:14px;
+      color:#e6eef7;
+    }
+    .legend-item img {
+      width:28px;
+      height:28px;
+      object-fit:contain;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+    }
     @media (max-width:720px){ #map{height:60vh} .controls{flex-direction:column;align-items:flex-start} }
   </style>
 </head>
@@ -45,30 +74,34 @@
 
     <div id="map" role="application" aria-label="Peta Infrastruktur"></div>
     <div id="status" class="status">Menunggu pemuatan peta...</div>
+
+    <!-- Legend -->
+    <div class="legend" aria-hidden="false" role="region" aria-label="Legend Sektor">
+      <div class="legend-item"><img src="images/icon-air.png" alt=""><span>Air Minum</span></div>
+      <div class="legend-item"><img src="images/icon-sanitasi.png" alt=""><span>Sanitasi</span></div>
+      <div class="legend-item"><img src="images/icon-bina.png" alt=""><span>Bina Penataan Bangunan</span></div>
+      <div class="legend-item"><img src="images/icon-kawasan.png" alt=""><span>Pengembangan Kawasan Strategis</span></div>
+    </div>
   </div>
 
-  <!-- MarkerClusterer modern -->
+  <!-- MarkerClusterer -->
   <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 
-  <!-- Google Maps API: ganti dengan API key Anda jika perlu -->
+  <!-- Google Maps API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBEZqcze-RGCcRGIBjyEt0-ID99TCDJeS0&callback=initMap" async defer></script>
 
   <script>
-    // CONFIG: sesuaikan dengan repo Anda
     const GITHUB_USER = 'devamarkina';
     const REPO_NAME = 'peta';
     const BRANCH = 'main';
     const RAW_GEOJSON = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/DATA_SPASIAL.geojson`;
 
-    // Helper
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
     function setStatus(t){ document.getElementById('status').textContent = t || ''; }
 
-    // Globals
     let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
     const uniqueSectors = new Set(), uniqueYears = new Set();
 
-    // Normalisasi properti GeoJSON
     function normalizeProperties(props){
       const out = {};
       Object.keys(props||{}).forEach(k => {
@@ -96,13 +129,12 @@
       return html;
     }
 
-    // Cluster helpers
     function clearCluster(){
       if(!markerCluster) return;
       try{
         if(typeof markerCluster.clearMarkers === 'function') markerCluster.clearMarkers();
         else if(typeof markerCluster.delete === 'function') markerCluster.delete();
-      }catch(e){ console.warn('clearCluster failed', e); }
+      }catch(e){}
       markerCluster = null;
     }
     function clearMarkers(){
@@ -111,17 +143,14 @@
       allMarkers = [];
     }
 
-    // ICON mapping per sektor
-    const ICON_BASE = 'images/';
     const iconMap = {
-      'Air Minum': ICON_BASE + 'icon-air.png',
-      'Sanitasi': ICON_BASE + 'icon-sanitasi.png',
-      'Bina Penataan Bangunan': ICON_BASE + 'icon-bina.png',
-      'Pengembangan Kawasan Strategis': ICON_BASE + 'icon-kawasan.png',
-      'default': ICON_BASE + 'icon-default.png'
+      'Air Minum': 'images/icon-air.png',
+      'Sanitasi': 'images/icon-sanitasi.png',
+      'Bina Penataan Bangunan': 'images/icon-bina.png',
+      'Pengembangan Kawasan Strategis': 'images/icon-kawasan.png',
+      'default': 'images/icon-default.png'
     };
 
-    // CREATE MARKERS: gunakan icon sesuai sektor
     function createMarkersFromGeo(geo){
       clearMarkers();
       if(!geo || !Array.isArray(geo.features)) return 0;
@@ -143,39 +172,30 @@
           map,
           title: props.Nama_Infrastruktur || props.Nama || '',
           optimized: true,
-          icon: {
-            url: iconUrl,
-            scaledSize: new google.maps.Size(36, 36)
-          }
+          icon: { url: iconUrl, scaledSize: new google.maps.Size(36,36) }
         });
 
         marker.addListener('click', () => {
           infoWindow.setContent(buildInfoHtml(props));
           infoWindow.open(map, marker);
+          map.panTo(marker.getPosition());
+          map.setZoom(12); // zoom otomatis
         });
 
         allMarkers.push({ marker, props });
         bounds.extend(marker.getPosition());
       });
 
-      // Build cluster
       try{
         if(window.MarkerClusterer){
           markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
-        } else if(window.markerClusterer){
-          markerCluster = new window.markerClusterer(map, allMarkers.map(x => x.marker), {
-            imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'
-          });
         }
-      }catch(err){
-        console.warn('Gagal membuat cluster', err);
-      }
+      }catch(err){}
 
       if(!bounds.isEmpty()) map.fitBounds(bounds);
       return allMarkers.length;
     }
 
-    // Populate filters
     function populateFilters(geo){
       uniqueSectors.clear(); uniqueYears.clear();
       if(!geo || !Array.isArray(geo.features)) return;
@@ -187,17 +207,15 @@
 
       const sectorSel = document.getElementById('sectorFilter');
       const yearSel = document.getElementById('yearFilter');
-
-      sectorSel.innerHTML = '<option value=\"\">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value=\"'+escapeHtml(s)+'\">'+escapeHtml(s)+'</option>').join('');
-      yearSel.innerHTML = '<option value=\"\">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value=\"'+escapeHtml(y)+'\">'+escapeHtml(y)+'</option>').join('');
+      sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
+      yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
     }
 
-    // Apply filter
     function applyFilter(){
       const sector = String(document.getElementById('sectorFilter').value || '').trim();
       const year = String(document.getElementById('yearFilter').value || '').trim();
-
       let visible = 0;
+
       allMarkers.forEach(({ marker, props }) => {
         const mSector = props.Sektor ? String(props.Sektor).trim() : '';
         const mYear = props.Tahun_Pembangunan ? String(props.Tahun_Pembangunan).trim() : '';
@@ -206,17 +224,9 @@
         if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
       });
 
-      // rebuild cluster for visible markers
       const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
       clearCluster();
-      try{
-        if(window.MarkerClusterer){
-          markerCluster = new MarkerClusterer({ map, markers: visibleMarkers });
-        } else if(window.markerClusterer){
-          markerCluster = new window.markerClusterer(map, visibleMarkers, { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
-        }
-      }catch(e){ console.warn('cluster apply failed', e); }
-
+      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: visibleMarkers }); } }catch(e){}
       setStatus('Menampilkan ' + visible + ' titik.');
       if(visible > 0){
         const b = new google.maps.LatLngBounds();
@@ -225,26 +235,18 @@
       }
     }
 
-    // Reset filter
     function resetFilter(){
       document.getElementById('sectorFilter').value = '';
       document.getElementById('yearFilter').value = '';
       allMarkers.forEach(x => x.marker.setMap(map));
       clearCluster();
-      try{
-        if(window.MarkerClusterer){
-          markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
-        } else if(window.markerClusterer){
-          markerCluster = new window.markerClusterer(map, allMarkers.map(x => x.marker), { imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m' });
-        }
-      }catch(e){ console.warn('cluster reset failed', e); }
+      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) }); } }catch(e){}
       setStatus('Menampilkan ' + allMarkers.length + ' titik.');
       const b = new google.maps.LatLngBounds();
       allMarkers.forEach(x => b.extend(x.marker.getPosition()));
       if(!b.isEmpty()) map.fitBounds(b);
     }
 
-    // Load GeoJSON with fallback to local file
     async function loadGeoJSON(url){
       setStatus('Memuat GeoJSON dari: ' + url);
       try{
@@ -257,45 +259,19 @@
         resetFilter();
         setStatus('Data dimuat. ' + count + ' titik terbaca.');
       }catch(err){
-        console.error(err);
-        setStatus('Gagal memuat dari raw GitHub. Mencoba file lokal...');
-        try {
-          const res2 = await fetch('DATA_SPASIAL.geojson');
-          if(!res2.ok) throw new Error('Fallback failed: ' + res2.status);
-          const geo2 = await res2.json();
-          geoData = geo2;
-          const count2 = createMarkersFromGeo(geo2);
-          populateFilters(geo2);
-          resetFilter();
-          setStatus('Data dimuat dari file lokal. ' + count2 + ' titik terbaca.');
-        }catch(err2){
-          console.error(err2);
-          setStatus('Gagal memuat GeoJSON. Pastikan DATA_SPASIAL.geojson ada di repo atau RAW_GEOJSON benar.');
-        }
+        setStatus('Gagal memuat GeoJSON.');
       }
     }
 
-    // Initialize map
     function initMap(){
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: -3.3, lng: 129.1 },
-        zoom: 7,
-        mapTypeControl: false,
-        streetViewControl: false
-      });
+      map = new google.maps.Map(document.getElementById('map'), { center: { lat: -3.3, lng: 129.1 }, zoom: 7, mapTypeControl: false, streetViewControl: false });
       infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
-
       document.getElementById('applyBtn').addEventListener('click', applyFilter);
       document.getElementById('resetBtn').addEventListener('click', resetFilter);
-
-      // mulai muat data otomatis
       loadGeoJSON(RAW_GEOJSON);
     }
 
-    // debug helpers
     window.initMap = initMap;
-    window.loadGeoJSON = loadGeoJSON;
-    window._debug = { allMarkers, uniqueSectors, uniqueYears, geoData };
   </script>
 </body>
 </html>
