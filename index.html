@@ -5,71 +5,231 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>MalukuInfraZone</title>
   <meta name="description" content="Portal data dan peta infrastruktur BPBPK Maluku">
+
+  <!-- Favicon -->
   <link rel="icon" type="image/png" href="images/favicon.png">
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --bg-dark:#0b0f17;
-      --accent:#3b82f6;
-      --accent-2:#f59e0b;
-      --muted:#a7b6c8;
-      --font-poppins:'Poppins',sans-serif;
-      --font-montserrat:'Montserrat',sans-serif;
-    }
-    html,body{height:100%;margin:0;font-family:var(--font-poppins);background:var(--bg-dark);color:#fff;overflow-x:hidden}
-    header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(11,15,23,0.75);backdrop-filter:blur(8px);transition:background .3s ease, box-shadow .3s ease}
-    header.scrolled{background:rgba(11,15,23,0.92);box-shadow:0 4px 12px rgba(0,0,0,0.4)}
-    .brand{display:flex;align-items:center;gap:16px}
-    .brand img{height:44px}
-    .nav a{margin-left:22px;color:#fff;text-decoration:none;font-weight:600;transition:color .2s}
-    .nav a:hover{color:var(--accent)}
 
-    .hero{height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;flex-direction:column;position:relative;background:url('images/background-maluku.jpg') no-repeat center/cover}
-    .hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.7))}
-    .hero-content{position:relative;z-index:10;max-width:880px;padding:20px}
+  <!-- Styles -->
+  <style>
+    :root {
+      --bg-dark: #0b0f17;
+      --accent: #3b82f6;
+      --accent-2: #f59e0b;
+      --muted: #a7b6c8;
+      --font-poppins: 'Poppins', sans-serif;
+      --font-montserrat: 'Montserrat', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: var(--font-poppins);
+      background: var(--bg-dark);
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    /* ===== Header ===== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 36px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: rgba(11, 15, 23, 0.75);
+      backdrop-filter: blur(8px);
+      transition: background .3s ease, box-shadow .3s ease;
+    }
+    header.scrolled {
+      background: rgba(11, 15, 23, 0.92);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand img {
+      height: 44px;
+    }
+    .site-title {
+      font-family: var(--font-montserrat);
+      font-weight: 800;
+      font-size: 20px;
+    }
+    .nav a {
+      margin-left: 22px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color .2s;
+    }
+    .nav a:hover {
+      color: var(--accent);
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+      position: relative;
+      background: url('images/background-maluku.jpg') no-repeat center/cover;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.7));
+    }
+    .hero-content {
+      position: relative;
+      z-index: 10;
+      max-width: 880px;
+      padding: 20px;
+    }
+    .hero h1 {
+      font-size: 52px;
+      font-family: var(--font-montserrat);
+      font-weight: 900;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .hero p {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .btn-primary {
+      margin-top: 24px;
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #021129;
+      text-decoration: none;
+      font-size: 18px;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 26px rgba(59,130,246,0.3);
+    }
 
     /* Fade-in animations */
-    .fade-in {opacity:0;transform:translateY(8px);animation:fadeUp .7s ease forwards}
-    .fade-in.delay-1{animation-delay:.12s}
-    .fade-in.delay-2{animation-delay:.28s}
-    .fade-in.delay-3{animation-delay:.44s}
-    @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+    .fade-in {
+      opacity: 0;
+      transform: translateY(8px);
+      animation: fadeUp .7s ease forwards;
+    }
+    .fade-in.delay-1 { animation-delay: .12s; }
+    .fade-in.delay-2 { animation-delay: .28s; }
+    .fade-in.delay-3 { animation-delay: .44s; }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-    .hero h1{font-size:52px;font-family:var(--font-montserrat);font-weight:900;margin:0;letter-spacing:-0.02em}
-    .hero p{margin-top:12px;color:var(--muted);font-size:18px}
-    .btn-primary{margin-top:24px;display:inline-block;padding:14px 28px;border-radius:999px;font-weight:700;background:var(--accent);color:#021129;text-decoration:none;font-size:18px;transition:transform .18s ease,box-shadow .18s ease}
-    .btn-primary:hover{transform:translateY(-4px);box-shadow:0 12px 26px rgba(59,130,246,0.3)}
+    /* ===== Sectors ===== */
+    .sectors {
+      padding: 80px 20px;
+      max-width: 1160px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .sectors h2 {
+      font-size: 32px;
+      font-family: var(--font-montserrat);
+      font-weight: 800;
+      margin-bottom: 40px;
+    }
+    .sector-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 28px;
+    }
+    .sector-card {
+      background: #161b26;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.45);
+      transition: transform .28s, box-shadow .28s;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: cardIn .6s ease forwards;
+    }
+    .sector-card:nth-child(1){ animation-delay: .12s; }
+    .sector-card:nth-child(2){ animation-delay: .24s; }
+    .sector-card:nth-child(3){ animation-delay: .36s; }
+    .sector-card:nth-child(4){ animation-delay: .48s; }
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .sector-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+    }
+    .sector-card .icon {
+      width: 56px;
+      height: 56px;
+      display: inline-block;
+      margin-bottom: 12px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    }
+    .sector-card h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .sector-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-    .sectors{padding:80px 20px;max-width:1160px;margin:0 auto;text-align:center}
-    .sectors h2{font-size:32px;font-family:var(--font-montserrat);font-weight:800;margin-bottom:40px}
-    .sector-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px}
+    /* ===== Footer ===== */
+    footer {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 14px;
+      background: #0b0f17;
+    }
+    footer .tagline {
+      display: block;
+      margin-top: 8px;
+      font-size: 16px;
+      color: #fff;
+      font-weight: 600;
+    }
 
-    /* Card reveal */
-    .sector-card{background:#161b26;border-radius:14px;padding:24px;box-shadow:0 6px 22px rgba(0,0,0,0.45);transition:transform .28s,box-shadow .28s;opacity:0;transform:translateY(10px);animation:cardIn .6s ease forwards}
-    .sector-card:nth-child(1){animation-delay:.12s}
-    .sector-card:nth-child(2){animation-delay:.24s}
-    .sector-card:nth-child(3){animation-delay:.36s}
-    .sector-card:nth-child(4){animation-delay:.48s}
-    @keyframes cardIn{to{opacity:1;transform:translateY(0)}}
-
-    .sector-card:hover{transform:translateY(-8px);box-shadow:0 18px 40px rgba(0,0,0,0.6)}
-    .sector-card .icon{width:56px;height:56px;display:inline-block;margin-bottom:12px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4))}
-    .sector-card h3{margin:0 0 10px;font-size:20px;font-weight:700;color:var(--accent)}
-    .sector-card p{margin:0;color:var(--muted);font-size:14px}
-
-    footer{text-align:center;padding:40px;color:var(--muted);font-size:14px;background:#0b0f17}
-    footer .tagline{display:block;margin-top:8px;font-size:16px;color:#fff;font-weight:600}
-
-    @media(max-width:720px){.hero h1{font-size:34px}.hero p{font-size:16px}}
+    /* ===== Responsive ===== */
+    @media(max-width:720px) {
+      .hero h1 { font-size: 34px; }
+      .hero p { font-size: 16px; }
+    }
   </style>
 </head>
 <body>
+  <!-- ===== Header ===== -->
   <header id="site-header">
     <div class="brand">
-      <img src="images/logo-pu.png" alt="Logo Kementerian PUPR" style="height:44px">
-      <div style="font-family:var(--font-montserrat);font-weight:800;font-size:20px">MalukuInfraZone</div>
+      <img src="images/logo-pu.png" alt="Logo Kementerian PUPR">
+      <div class="site-title">MalukuInfraZone</div>
     </div>
     <nav class="nav">
       <a href="index.html">Beranda</a>
@@ -77,6 +237,7 @@
     </nav>
   </header>
 
+  <!-- ===== Hero Section ===== -->
   <section class="hero">
     <div class="hero-content">
       <h1 class="fade-in delay-1">Platform Digital BPBPK Maluku</h1>
@@ -85,6 +246,7 @@
     </div>
   </section>
 
+  <!-- ===== Sectors Section ===== -->
   <section class="sectors">
     <h2>Sektor di BPBPK Maluku</h2>
     <div class="sector-list">
@@ -111,21 +273,25 @@
     </div>
   </section>
 
+  <!-- ===== Footer ===== -->
   <footer>
     &copy; 2025 MalukuInfraZone - BPBPK Maluku. Semua Hak Dilindungi.
     <span class="tagline">Transparansi Data, Akselerasi Pembangunan Negeri.</span>
   </footer>
 
+  <!-- ===== Script Header Scroll ===== -->
   <script>
-    // Tambahkan efek header berubah saat scroll
-    window.addEventListener('scroll', function() {
-      const header = document.getElementById('site-header');
-      if(window.scrollY > 50){
+    const header = document.getElementById('site-header');
+    function checkHeader() {
+      if (!header) return;
+      if (window.scrollY > 50) {
         header.classList.add('scrolled');
       } else {
         header.classList.remove('scrolled');
       }
-    });
+    }
+    window.addEventListener('load', checkHeader);
+    window.addEventListener('scroll', checkHeader, { passive: true });
   </script>
 </body>
 </html>
