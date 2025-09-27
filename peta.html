@@ -176,10 +176,13 @@
         });
 
         marker.addListener('click', () => {
-          infoWindow.setContent(buildInfoHtml(props));
-          infoWindow.open(map, marker);
-          map.panTo(marker.getPosition());
-          map.setZoom(12); // zoom otomatis
+          // center + zoom first, then open InfoWindow after a short delay
+          map.setCenter(marker.getPosition());
+          map.setZoom(14);
+          setTimeout(() => {
+            infoWindow.setContent(buildInfoHtml(props));
+            infoWindow.open(map, marker);
+          }, 200);
         });
 
         allMarkers.push({ marker, props });
