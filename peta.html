@@ -377,16 +377,14 @@
           } else {
             refreshAdminStyle();
           }
-        } else {
-          // hide features that look like province
-          map.data.forEach(f => {
-            const maybeProv = (f.getProperty && (String(f.getProperty('provinsi')||'')+String(f.getProperty('LEVEL')||'')).toLowerCase();
-            if(maybeProv.includes('prov') || maybeProv.includes('maluku')){
-              map.data.overrideStyle(f, { strokeOpacity:0, fillOpacity:0 });
-            }
-          });
-        }
-      });
+       } else {
+map.data.forEach(f => {
+const maybeProv = (f.getProperty ? (String(f.getProperty('provinsi') || '') + String(f.getProperty('LEVEL') || '')) : '').toLowerCase();
+if (maybeProv.includes('prov') || maybeProv.includes('maluku')) {
+map.data.overrideStyle(f, { strokeOpacity: 0, fillOpacity: 0 });
+}
+});
+}
 
       // initial load of kab layer if checked
       if(document.getElementById('toggleKab').checked){
