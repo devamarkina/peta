@@ -13,8 +13,6 @@
     .title{font-weight:700}
     .btn{display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:700;cursor:pointer}
     .btn-back{background:rgba(255,255,255,0.04);color:#e6eef7;border:1px solid rgba(255,255,255,0.08)}
-
-    /* controls & select - dark theme with high contrast text */
     .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .select-wrap{position:relative;display:inline-block}
     .select{
@@ -42,18 +40,11 @@
       pointer-events:none;
     }
     select::-ms-expand { display: none; }
-
     #map{width:100%;height:72vh;border-radius:12px;background:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin-top:14px}
     .status{margin-top:8px;color:var(--muted);font-size:13px}
-
-    /* Legend */
     .legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;padding:10px 12px;background:rgba(0,0,0,0.45);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.45)}
     .legend-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:8px;font-size:14px;color:#e6eef7}
     .legend-item img{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.4))}
-
-    .toggles{display:flex;gap:12px;align-items:center;margin-left:8px}
-    .toggles label{font-size:13px;color:var(--muted);cursor:pointer}
-
     @media (max-width:720px){ #map{height:60vh} .controls{flex-direction:column;align-items:flex-start} }
   </style>
 </head>
@@ -82,17 +73,11 @@
 
       <button id="applyBtn" class="btn" style="background:var(--accent);color:#021129">Terapkan</button>
       <button id="resetBtn" class="btn btn-back">Reset</button>
-
-      <div class="toggles" style="margin-left:8px">
-        <label><input id="toggleKab" type="checkbox" checked> Tampilkan Batas Kab/Kota</label>
-        <label><input id="toggleProv" type="checkbox"> Tampilkan Batas Provinsi</label>
-      </div>
     </div>
 
     <div id="map" role="application" aria-label="Peta Infrastruktur"></div>
     <div id="status" class="status">Menunggu pemuatan peta...</div>
 
-    <!-- Legend -->
     <div class="legend" role="region" aria-label="Legend Sektor">
       <div class="legend-item"><img src="images/icon-air.png" alt=""><span>Air Minum</span></div>
       <div class="legend-item"><img src="images/icon-sanitasi.png" alt=""><span>Sanitasi</span></div>
@@ -101,23 +86,18 @@
     </div>
   </div>
 
-  <!-- MarkerClusterer -->
   <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
-  <!-- Google Maps API: ganti dengan API key Anda bila perlu -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBEZqcze-RGCcRGIBjyEt0-ID99TCDJeS0&callback=initMap" async defer></script>
 
   <script>
-    // CONFIG: sesuaikan user/repo/branch jika Anda muat GeoJSON dari raw GitHub
     const GITHUB_USER = 'devamarkina';
     const REPO_NAME = 'peta';
     const BRANCH = 'main';
     const RAW_GEOJSON = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH}/DATA_SPASIAL.geojson`;
 
-    // admin data paths
-    const ADMIN_PROV_URL = 'data/maluku_prov.geojson';         // optional
-    const ADMIN_KAB_URL  = 'data/maluku_kabkota.geojson';     // wajib
+    const ADMIN_PROV_URL = 'data/maluku_prov.geojson';
+    const ADMIN_KAB_URL  = 'data/maluku_kabkota.geojson';
 
-    // marker icons (images/ folder)
     const iconMap = {
       'Air Minum': 'images/icon-air.png',
       'Sanitasi': 'images/icon-sanitasi.png',
@@ -126,12 +106,12 @@
       'default': 'images/icon-default.png'
     };
 
-    // globals
     let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
     const uniqueSectors = new Set(), uniqueYears = new Set();
-    let adminKabLoaded = false, adminProvLoaded = false;
 
-    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+    }
     function setStatus(t){ document.getElementById('status').textContent = t || ''; }
 
     function normalizeProperties(props){
@@ -161,9 +141,19 @@
       return html;
     }
 
-    // markers
-    function clearCluster(){ if(markerCluster){ markerCluster.clearMarkers?.(); markerCluster=null; } }
-    function clearMarkers(){ clearCluster(); allMarkers.forEach(x => x.marker.setMap(null)); allMarkers = []; }
+    function clearCluster(){
+      if(markerCluster && typeof markerCluster.clearMarkers === 'function'){
+        markerCluster.clearMarkers();
+      } else if(markerCluster && typeof markerCluster.clear === 'function'){
+        markerCluster.clear();
+      }
+      markerCluster = null;
+    }
+    function clearMarkers(){
+      clearCluster();
+      allMarkers.forEach(x => x.marker.setMap(null));
+      allMarkers = [];
+    }
 
     function createMarkersFromGeo(geo){
       clearMarkers();
@@ -190,7 +180,6 @@
         });
 
         marker.addListener('click', () => {
-          // center + zoom then show info
           map.setCenter(marker.getPosition());
           map.setZoom(14);
           setTimeout(() => {
@@ -204,7 +193,9 @@
       });
 
       try{
-        if(window.MarkerClusterer){
+        if(window.markerClusterer && markerClusterer.MarkerClusterer){
+          markerCluster = new markerClusterer.MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
+        } else if(window.MarkerClusterer){
           markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
         }
       }catch(err){
@@ -246,7 +237,13 @@
 
       const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
       clearCluster();
-      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: visibleMarkers }); } }catch(e){}
+      try{
+        if(window.markerClusterer && markerClusterer.MarkerClusterer){
+          markerCluster = new markerClusterer.MarkerClusterer({ map, markers: visibleMarkers });
+        } else if(window.MarkerClusterer){
+          markerCluster = new MarkerClusterer({ map, markers: visibleMarkers });
+        }
+      }catch(e){}
 
       setStatus('Menampilkan ' + visible + ' titik.');
       if(visible > 0){
@@ -261,57 +258,38 @@
       document.getElementById('yearFilter').value = '';
       allMarkers.forEach(x => x.marker.setMap(map));
       clearCluster();
-      try{ if(window.MarkerClusterer){ markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) }); } }catch(e){}
+      try{
+        if(window.markerClusterer && markerClusterer.MarkerClusterer){
+          markerCluster = new markerClusterer.MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
+        } else if(window.MarkerClusterer){
+          markerCluster = new MarkerClusterer({ map, markers: allMarkers.map(x => x.marker) });
+        }
+      }catch(e){}
       setStatus('Menampilkan ' + allMarkers.length + ' titik.');
       const b = new google.maps.LatLngBounds();
       allMarkers.forEach(x => b.extend(x.marker.getPosition()));
       if(!b.isEmpty()) map.fitBounds(b);
     }
 
-    // load GeoJSON (markers)
     async function loadGeoJSON(url){
       setStatus('Memuat GeoJSON...');
       try{
         const res = await fetch(url);
         if(!res.ok) throw new Error('HTTP ' + res.status);
         const geo = await res.json();
-        geoData = geo;
-        createMarkersFromGeo(geo);
-        populateFilters(geo);
-        resetFilter();
-        setStatus('Data titik dimuat. ' + allMarkers.length + ' titik terbaca.');
+        return geo;
       }catch(err){
-        console.error(err);
-        setStatus('Gagal memuat GeoJSON titik. Periksa RAW_GEOJSON atau file lokal.');
-      }
-    }
-
-    // load admin boundaries (kab/kota or prov)
-    async function loadAdminGeoJSON(url){
-      try{
-        const res = await fetch(url);
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        const geo = await res.json();
-        map.data.addGeoJson(geo);
-        refreshAdminStyle();
-        return true;
-      }catch(err){
-        console.error('Gagal muat admin geojson', err);
-        setStatus('Gagal muat boundary: ' + url);
-        return false;
+        console.error('Gagal fetch', url, err);
+        throw err;
       }
     }
 
     function refreshAdminStyle(){
       map.data.setStyle(feature => {
-        // try detect province vs kab by property keys or known props
-        const props = feature.getProperty ? feature.getProperty('NAME') || feature.getProperty('NAMOBJ') || feature.getProperty('provinsi') || feature.getProperty('WADMKK') : null;
-        // if feature contains province name or LEVEL indicates province, style as prov
-        const maybeProv = (feature.getProperty && (String(feature.getProperty('provinsi')||'') + String(feature.getProperty('LEVEL')||'')).toLowerCase());
+        const maybeProv = (feature.getProperty ? (String(feature.getProperty('provinsi')||'') + String(feature.getProperty('LEVEL')||'') + String(feature.getProperty('NAME')||'') + String(feature.getProperty('NAMOBJ')||'')) : '').toLowerCase();
         if(maybeProv.includes('prov') || maybeProv.includes('maluku') ){
           return { strokeWeight: 2.8, strokeColor: '#FFD166', strokeOpacity: 0.95, fillColor:'#FFD166', fillOpacity:0.02 };
         }
-        // else kab style
         return { strokeWeight: 1.4, strokeColor: '#2EC4B6', strokeOpacity: 0.9, fillColor:'#2EC4B6', fillOpacity:0.01 };
       });
     }
@@ -326,7 +304,7 @@
       });
       map.data.addListener('click', e => {
         const props = e.feature.getProperty ? e.feature.getProperties() : {};
-        const name = props.NAMOBJ || props.WADMKK || props.NAME || props.NAMA || 'Kabupaten/Kota';
+        const name = props.NAMOBJ || props.WADMKK || props.NAME || props.NAMA || 'Wilayah';
         const content = '<div style="padding:8px;background:#fff;color:#021129;border-radius:6px"><strong>' + escapeHtml(String(name)) + '</strong></div>';
         if(e.latLng){
           infoWindow.setContent(content);
@@ -340,59 +318,48 @@
     }
 
     async function initMap(){
+      console.log('initMap called');
       map = new google.maps.Map(document.getElementById('map'), {
         center:{lat:-3.3,lng:129.1}, zoom:7,
         mapTypeControl:false, streetViewControl:false
       });
       infoWindow = new google.maps.InfoWindow({ maxWidth:320 });
 
-      // wire UI
       document.getElementById('applyBtn').addEventListener('click', applyFilter);
       document.getElementById('resetBtn').addEventListener('click', resetFilter);
 
-      // load marker data
-      loadGeoJSON(RAW_GEOJSON);
-
-      // load kab/kota on demand (toggle checked by default)
-      document.getElementById('toggleKab').addEventListener('change', async function(e){
-        if(e.target.checked){
-          if(!adminKabLoaded){
-            const ok = await loadAdminGeoJSON(ADMIN_KAB_URL);
-            if(ok) { adminKabLoaded = true; attachAdminInteractions(); }
-          } else {
-            refreshAdminStyle();
-          }
-        } else {
-          // hide all admin features
-          map.data.forEach(f => map.data.overrideStyle(f, { strokeOpacity:0, fillOpacity:0 }));
-        }
-      });
-
-      // load prov if present when toggled
-      document.getElementById('toggleProv').addEventListener('change', async function(e){
-        if(e.target.checked){
-          if(!adminProvLoaded){
-            const ok = await loadAdminGeoJSON(ADMIN_PROV_URL);
-            if(ok) adminProvLoaded = true;
-          } else {
-            refreshAdminStyle();
-          }
-       } else {
-map.data.forEach(f => {
-const maybeProv = (f.getProperty ? (String(f.getProperty('provinsi') || '') + String(f.getProperty('LEVEL') || '')) : '').toLowerCase();
-if (maybeProv.includes('prov') || maybeProv.includes('maluku')) {
-map.data.overrideStyle(f, { strokeOpacity: 0, fillOpacity: 0 });
-}
-});
-}
-
-      // initial load of kab layer if checked
-      if(document.getElementById('toggleKab').checked){
-        const ok = await loadAdminGeoJSON(ADMIN_KAB_URL);
-        if(ok){ adminKabLoaded = true; attachAdminInteractions(); }
+      try{
+        // load markers
+        const geoMarkers = await loadGeoJSON(RAW_GEOJSON);
+        geoData = geoMarkers;
+        createMarkersFromGeo(geoMarkers);
+        populateFilters(geoMarkers);
+        resetFilter();
+        setStatus('Data titik dimuat. ' + allMarkers.length + ' titik terbaca.');
+      }catch(err){
+        setStatus('Gagal muat DATA_SPASIAL.geojson. Periksa path atau CORS.');
       }
+
+      try{
+        // load admin kab
+        const geoKab = await loadGeoJSON(ADMIN_KAB_URL);
+        map.data.addGeoJson(geoKab);
+      }catch(err){
+        console.warn('Gagal muat kab geojson', err);
+      }
+
+      try{
+        // load admin prov
+        const geoProv = await loadGeoJSON(ADMIN_PROV_URL);
+        map.data.addGeoJson(geoProv);
+      }catch(err){
+        console.warn('Gagal muat prov geojson', err);
+      }
+
+      refreshAdminStyle();
+      attachAdminInteractions();
     }
-    // expose init
+
     window.initMap = initMap;
   </script>
 </body>
