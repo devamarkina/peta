@@ -66,6 +66,11 @@
         <select id="sectorFilter" class="select"></select>
       </div>
 
+      <label style="font-size:13px;color:var(--muted)">Wilayah</label>
+      <div class="select-wrap">
+        <select id="regionFilter" class="select"></select>
+      </div>
+
       <label style="font-size:13px;color:var(--muted)">Tahun</label>
       <div class="select-wrap">
         <select id="yearFilter" class="select"></select>
@@ -107,12 +112,27 @@
     };
 
     let map, infoWindow, allMarkers = [], markerCluster = null, geoData = null;
-    const uniqueSectors = new Set(), uniqueYears = new Set();
+    const uniqueSectors = new Set(), uniqueYears = new Set(), uniqueRegions = new Set();
 
     function escapeHtml(s){
       return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
     }
     function setStatus(t){ document.getElementById('status').textContent = t || ''; }
+
+    function normalizeRegion(s) {
+      if (!s) return ''
+      s = String(s).normalize('NFKC').replace(/\u00A0/g, ' ').trim()
+      s = s.replace(/\s+/g, ' ')
+      s = s.replace(/^kab(?:\.|upaten)?\s*/i, 'Kab. ')
+      s = s.replace(/^kota\s*/i, 'Kota ')
+      s = s.replace(/^prov(?:\.|insi)?\s*/i, 'Prov. ')
+      s = s.replace(/^kab\.?\s*maluku\s*tengah$/i, 'Kab. Maluku Tengah')
+      s = s.replace(/^maluku\s*tengah$/i, 'Kab. Maluku Tengah')
+      s = s.replace(/^kab\s*maluku\s*tengah$/i, 'Kab. Maluku Tengah')
+      s = s.replace(/^kota\s+ambon\s*$/i, 'Kota Ambon')
+      s = s.replace(/^kota\s+tual\s*$/i, 'Kota Tual')
+      return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+    }
 
     function normalizeProperties(props){
       const out = {};
@@ -126,7 +146,14 @@
         if(['nama','nama_infrastruktur','name'].includes(lower)) out.Nama_Infrastruktur = v;
         if(['status','status_keberfungsian','kondisi'].includes(lower)) out.Status_Keberfungsian = v;
         if(['lokasi','location'].includes(lower)) out.Lokasi = v;
+        if(['wilayah','wadmkk','namobj','kabupaten','kota','kecamatan','provinsi','adm2','adm1'].includes(lower)) out.Wilayah = v;
       });
+      // fallback from known keys or lokasi text
+      if(!out.Wilayah){
+        const fallback = (props.Wilayah || props.wilayah || props.WADMKK || props.NAMOBJ || props.nama || props.Lokasi || props.lokasi || '');
+        out.Wilayah = fallback;
+      }
+      out.Wilayah = normalizeRegion(out.Wilayah || '');
       return out;
     }
 
@@ -135,6 +162,7 @@
       if(p.Nama_Infrastruktur) html += '<strong>' + escapeHtml(String(p.Nama_Infrastruktur)) + '</strong><br>';
       if(p.Sektor) html += 'Sektor: ' + escapeHtml(String(p.Sektor)) + '<br>';
       if(p.Lokasi) html += 'Lokasi: ' + escapeHtml(String(p.Lokasi)) + '<br>';
+      if(p.Wilayah) html += 'Wilayah: ' + escapeHtml(String(p.Wilayah)) + '<br>';
       if(p.Tahun_Pembangunan) html += 'Tahun Bangun: ' + escapeHtml(String(p.Tahun_Pembangunan)) + '<br>';
       if(p.Status_Keberfungsian) html += 'Status: ' + escapeHtml(String(p.Status_Keberfungsian)) + '<br>';
       html += '</div>';
@@ -179,13 +207,10 @@
           icon: { url: iconUrl, scaledSize: new google.maps.Size(36,36) }
         });
 
+        // open popup without changing zoom/center
         marker.addListener('click', () => {
-          map.setCenter(marker.getPosition());
-          map.setZoom(14);
-          setTimeout(() => {
-            infoWindow.setContent(buildInfoHtml(props));
-            infoWindow.open(map, marker);
-          }, 160);
+          infoWindow.setContent(buildInfoHtml(props));
+          infoWindow.open(map, marker);
         });
 
         allMarkers.push({ marker, props });
@@ -207,32 +232,43 @@
     }
 
     function populateFilters(geo){
-      uniqueSectors.clear(); uniqueYears.clear();
+      uniqueSectors.clear(); uniqueYears.clear(); uniqueRegions.clear();
       if(!geo || !Array.isArray(geo.features)) return;
       geo.features.forEach(f => {
         const p = normalizeProperties(f.properties || {});
         if(p.Sektor && String(p.Sektor).trim()) uniqueSectors.add(String(p.Sektor).trim());
         if(p.Tahun_Pembangunan && String(p.Tahun_Pembangunan).trim() && !isNaN(Number(String(p.Tahun_Pembangunan).trim()))) uniqueYears.add(String(p.Tahun_Pembangunan).trim());
+        if(p.Wilayah && String(p.Wilayah).trim()) uniqueRegions.add(String(p.Wilayah).trim());
       });
 
       const sectorSel = document.getElementById('sectorFilter');
       const yearSel = document.getElementById('yearFilter');
+      const regionSel = document.getElementById('regionFilter');
 
       sectorSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueSectors).sort().map(s => '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>').join('');
       yearSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueYears).sort((a,b)=>Number(a)-Number(b)).map(y => '<option value="'+escapeHtml(y)+'">'+escapeHtml(y)+'</option>').join('');
+      regionSel.innerHTML = '<option value="">Semua</option>' + Array.from(uniqueRegions).sort().map(r => '<option value="'+escapeHtml(r)+'">'+escapeHtml(r)+'</option>').join('');
     }
 
     function applyFilter(){
       const sector = String(document.getElementById('sectorFilter').value || '').trim();
       const year = String(document.getElementById('yearFilter').value || '').trim();
+      const region = String(document.getElementById('regionFilter').value || '').trim();
 
       let visible = 0;
       allMarkers.forEach(({ marker, props }) => {
         const mSector = props.Sektor ? String(props.Sektor).trim() : '';
         const mYear = props.Tahun_Pembangunan ? String(props.Tahun_Pembangunan).trim() : '';
+        const mRegion = props.Wilayah ? String(props.Wilayah).trim() : '';
         const matchSector = !sector || mSector === sector;
         const matchYear = !year || mYear === year;
-        if(matchSector && matchYear){ marker.setMap(map); visible++; } else { marker.setMap(null); }
+        const matchRegion = !region || mRegion === region;
+        if(matchSector && matchYear && matchRegion){
+          marker.setMap(map);
+          visible++;
+        } else {
+          marker.setMap(null);
+        }
       });
 
       const visibleMarkers = allMarkers.filter(m => m.marker.getMap()).map(m => m.marker);
@@ -256,6 +292,7 @@
     function resetFilter(){
       document.getElementById('sectorFilter').value = '';
       document.getElementById('yearFilter').value = '';
+      document.getElementById('regionFilter').value = '';
       allMarkers.forEach(x => x.marker.setMap(map));
       clearCluster();
       try{
@@ -329,7 +366,6 @@
       document.getElementById('resetBtn').addEventListener('click', resetFilter);
 
       try{
-        // load markers
         const geoMarkers = await loadGeoJSON(RAW_GEOJSON);
         geoData = geoMarkers;
         createMarkersFromGeo(geoMarkers);
@@ -341,7 +377,6 @@
       }
 
       try{
-        // load admin kab
         const geoKab = await loadGeoJSON(ADMIN_KAB_URL);
         map.data.addGeoJson(geoKab);
       }catch(err){
@@ -349,7 +384,6 @@
       }
 
       try{
-        // load admin prov
         const geoProv = await loadGeoJSON(ADMIN_PROV_URL);
         map.data.addGeoJson(geoProv);
       }catch(err){
